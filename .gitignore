@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Env
+.env
+backend/.env
+*.env.local
+
+# DB local
+local.db
+
+# Node
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+
+# Claude
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
