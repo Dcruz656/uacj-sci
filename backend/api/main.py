@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.db.init import init_db
-from backend.api.routes import researchers, works, analytics
+from backend.api.routes import researchers, works, analytics, sync
 
 app = FastAPI(title="UACJ SCI API", version="0.1.0")
 
@@ -31,6 +31,7 @@ def startup():
 app.include_router(researchers.router, prefix="/api")
 app.include_router(works.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(sync.router, prefix="/api")
 
 
 @app.get("/api/health")
