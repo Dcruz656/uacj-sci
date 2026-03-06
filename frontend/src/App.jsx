@@ -21,6 +21,7 @@ const T = {
 }
 
 const MONO = "'IBM Plex Mono', monospace"
+const BASE_URL = import.meta.env.VITE_API_URL || ''
 const PIE_COLORS = [T.green, T.amber, T.red]
 const AFF_LABELS = { resolved: 'Resuelta', declared_unresolved: 'Declarada', missing: 'Sin filiación' }
 
@@ -94,7 +95,7 @@ function SyncPanel() {
     setSyncing(true)
     setResults(null)
     try {
-      const res = await fetch('/api/sync', {
+      const res = await fetch(`${BASE_URL}/api/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orcids }),
