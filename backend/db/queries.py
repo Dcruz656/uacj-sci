@@ -52,15 +52,22 @@ def get_works(researcher_id: str | None = None, year: int | None = None,
     return [dict(r) for r in rows]
 
 
-def get_kpis():
+def get_kpis(researcher_id: str | None = None):
     with get_conn() as conn:
-        total_works = conn.execute("SELECT COUNT(*) FROM works").fetchone()[0]
-        total_citations = conn.execute("SELECT COALESCE(SUM(cited_by_count),0) FROM works").fetchone()[0]
-        oa_count = conn.execute("SELECT COUNT(*) FROM works WHERE is_oa=1").fetchone()[0]
-        total_auth = conn.execute("SELECT COUNT(*) FROM authorships").fetchone()[0]
-        missing_count = conn.execute(
-            "SELECT COUNT(*) FROM authorships WHERE affiliation_status='missing'"
-        ).fetchone()[0]
+        if researcher_id:
+            subq = "SELECT DISTINCT work_id FROM authorships WHERE researcher_id = ?"
+            p = [researcher_id]
+            total_works    = conn.execute(f"SELECT COUNT(*) FROM works WHERE id IN ({subq})", p).fetchone()[0]
+            total_citations= conn.execute(f"SELECT COALESCE(SUM(cited_by_count),0) FROM works WHERE id IN ({subq})", p).fetchone()[0]
+            oa_count       = conn.execute(f"SELECT COUNT(*) FROM works WHERE is_oa=1 AND id IN ({subq})", p).fetchone()[0]
+            total_auth     = conn.execute("SELECT COUNT(*) FROM authorships WHERE researcher_id=?", p).fetchone()[0]
+            missing_count  = conn.execute("SELECT COUNT(*) FROM authorships WHERE affiliation_status='missing' AND researcher_id=?", p).fetchone()[0]
+        else:
+            total_works    = conn.execute("SELECT COUNT(*) FROM works").fetchone()[0]
+            total_citations= conn.execute("SELECT COALESCE(SUM(cited_by_count),0) FROM works").fetchone()[0]
+            oa_count       = conn.execute("SELECT COUNT(*) FROM works WHERE is_oa=1").fetchone()[0]
+            total_auth     = conn.execute("SELECT COUNT(*) FROM authorships").fetchone()[0]
+            missing_count  = conn.execute("SELECT COUNT(*) FROM authorships WHERE affiliation_status='missing'").fetchone()[0]
 
     leakage_rate = round(missing_count / total_auth * 100, 1) if total_auth else 0
     oa_pct = round(oa_count / total_works * 100, 1) if total_works else 0
@@ -73,15 +80,25 @@ def get_kpis():
     }
 
 
-def get_annual_production():
+def get_annual_production(researcher_id: str | None = None):
     with get_conn() as conn:
-        rows = conn.execute("""
-            SELECT publication_year as year, COUNT(*) as count
-            FROM works
-            WHERE publication_year IS NOT NULL
-            GROUP BY publication_year
-            ORDER BY publication_year
-        """).fetchall()
+        if researcher_id:
+            subq = "SELECT DISTINCT work_id FROM authorships WHERE researcher_id = ?"
+            rows = conn.execute(f"""
+                SELECT publication_year as year, COUNT(*) as count
+                FROM works
+                WHERE publication_year IS NOT NULL AND id IN ({subq})
+                GROUP BY publication_year
+                ORDER BY publication_year
+            """, [researcher_id]).fetchall()
+        else:
+            rows = conn.execute("""
+                SELECT publication_year as year, COUNT(*) as count
+                FROM works
+                WHERE publication_year IS NOT NULL
+                GROUP BY publication_year
+                ORDER BY publication_year
+            """).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -98,14 +115,16 @@ def get_sdg_stats():
     return [dict(r) for r in rows]
 
 
-def get_affiliation_summary():
+def get_affiliation_summary(researcher_id: str | None = None):
     with get_conn() as conn:
-        total = conn.execute("SELECT COUNT(*) FROM authorships").fetchone()[0]
-        rows = conn.execute("""
+        p  = [researcher_id] if researcher_id else []
+        rf = "WHERE researcher_id = ?" if researcher_id else ""
+        total = conn.execute(f"SELECT COUNT(*) FROM authorships {rf}", p).fetchone()[0]
+        rows  = conn.execute(f"""
             SELECT affiliation_status, COUNT(*) as count
-            FROM authorships
+            FROM authorships {rf}
             GROUP BY affiliation_status
-        """).fetchall()
+        """, p).fetchall()
     stats = {r["affiliation_status"]: r["count"] for r in rows}
     return {
         "total": total,
@@ -115,19 +134,31 @@ def get_affiliation_summary():
     }
 
 
-def get_affiliation_unresolved():
+def get_affiliation_unresolved(researcher_id: str | None = None):
     with get_conn() as conn:
-        rows = conn.execute("""
+        p  = [researcher_id] if researcher_id else []
+        rf = "AND a.researcher_id = ?" if researcher_id else ""
+        rows = conn.execute(f"""
             SELECT w.id as work_id, w.title, w.publication_year,
                    r.full_name as researcher_name,
                    a.raw_affiliation_string, a.affiliation_status
             FROM authorships a
             JOIN works w ON w.id = a.work_id
             JOIN researchers r ON r.id = a.researcher_id
-            WHERE a.affiliation_status = 'declared_unresolved'
+            WHERE a.affiliation_status = 'declared_unresolved' {rf}
             ORDER BY w.publication_year DESC
-        """).fetchall()
+        """, p).fetchall()
     return [dict(r) for r in rows]
+
+
+def delete_researcher(researcher_id: str):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM authorships WHERE researcher_id = ?", [researcher_id])
+        conn.execute("""
+            DELETE FROM works
+            WHERE id NOT IN (SELECT DISTINCT work_id FROM authorships)
+        """)
+        conn.execute("DELETE FROM researchers WHERE id = ?", [researcher_id])
 
 
 def get_affiliation_by_researcher():

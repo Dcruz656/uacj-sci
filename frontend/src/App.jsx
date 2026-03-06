@@ -199,13 +199,32 @@ function SyncPanel() {
 }
 
 export default function App() {
-  const { data: kpis }        = useApi('/api/analytics/kpis')
-  const { data: annual }      = useApi('/api/analytics/annual')
+  const [selected, setSelected] = useState(null) // { id, full_name } | null
+  const [deleting, setDeleting] = useState(null) // researcher id being deleted
+
+  const rp = selected ? `?researcher_id=${encodeURIComponent(selected.id)}` : ''
+
+  const { data: kpis }        = useApi(`/api/analytics/kpis${rp}`)
+  const { data: annual }      = useApi(`/api/analytics/annual${rp}`)
   const { data: sdgData }     = useApi('/api/analytics/sdg')
   const { data: researchers } = useApi('/api/researchers')
-  const { data: affSummary }  = useApi('/api/researchers/affiliation/summary')
-  const { data: unresolved }  = useApi('/api/researchers/affiliation/unresolved')
-  const { data: works }       = useApi('/api/works?limit=10')
+  const { data: affSummary }  = useApi(`/api/researchers/affiliation/summary${rp}`)
+  const { data: unresolved }  = useApi(`/api/researchers/affiliation/unresolved${rp}`)
+  const { data: works }       = useApi(`/api/works?limit=20${selected ? `&researcher_id=${encodeURIComponent(selected.id)}` : ''}`)
+
+  async function handleDelete(e, r) {
+    e.stopPropagation()
+    if (!window.confirm(`¿Eliminar a ${r.full_name} y todos sus works?`)) return
+    setDeleting(r.id)
+    try {
+      await fetch(`${BASE_URL}/api/researchers/${encodeURIComponent(r.id)}`, { method: 'DELETE' })
+      if (selected?.id === r.id) setSelected(null)
+      window.location.reload()
+    } catch {
+      alert('Error al eliminar')
+      setDeleting(null)
+    }
+  }
 
   const pieParts = affSummary
     ? [
@@ -234,6 +253,24 @@ export default function App() {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
 
         <SyncPanel />
+
+        {/* ── FILTER BANNER ── */}
+        {selected && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1rem',
+            background: T.accent + '12', border: `1px solid ${T.accent}44`, borderRadius: 8,
+            padding: '0.6rem 1rem', fontSize: 13,
+          }}>
+            <span style={{ color: T.textMid }}>Mostrando datos de</span>
+            <span style={{ color: T.accent, fontWeight: 600 }}>{selected.full_name}</span>
+            <button onClick={() => setSelected(null)} style={{
+              marginLeft: 'auto', background: 'transparent', border: `1px solid ${T.border}`,
+              borderRadius: 6, color: T.textMid, fontSize: 12, padding: '2px 10px', cursor: 'pointer',
+            }}>
+              Ver todos los investigadores
+            </button>
+          </div>
+        )}
 
         {/* ── KPI CARDS ── */}
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
@@ -297,21 +334,68 @@ export default function App() {
           </Panel>
 
           <Panel>
-            <SectionTitle>Investigadores</SectionTitle>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{
+                fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5,
+                color: T.textDim, borderBottom: `1px solid ${T.border}`, paddingBottom: 8, flex: 1, margin: 0,
+              }}>Investigadores</h2>
+              {selected && (
+                <button onClick={() => setSelected(null)} style={{
+                  background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 6,
+                  color: T.textMid, fontSize: 11, padding: '2px 10px', cursor: 'pointer', marginLeft: 12,
+                }}>
+                  Ver todos
+                </button>
+              )}
+            </div>
+            {selected && (
+              <div style={{
+                fontSize: 11, color: T.accent, fontFamily: MONO, marginBottom: 10,
+                padding: '4px 8px', background: T.accent + '15', borderRadius: 4, display: 'inline-block',
+              }}>
+                Filtrando: {selected.full_name}
+              </div>
+            )}
             {researchers ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {researchers.map(r => (
-                  <div key={r.id} style={{
-                    background: T.card, borderRadius: 8, padding: '0.75rem 1rem', border: `1px solid ${T.border}`,
-                  }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{r.full_name}</div>
-                    <div style={{ display: 'flex', gap: 16, fontSize: 12, color: T.textMid, fontFamily: MONO }}>
-                      <span><span style={{ color: T.accent }}>{r.works_count}</span> works</span>
-                      <span><span style={{ color: T.green }}>{r.cited_by_count}</span> citas</span>
-                      <span>h-index <span style={{ color: T.purple }}>{r.h_index}</span></span>
+                {researchers.map(r => {
+                  const isSelected = selected?.id === r.id
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => setSelected(isSelected ? null : { id: r.id, full_name: r.full_name })}
+                      style={{
+                        background: isSelected ? T.accent + '18' : T.card,
+                        borderRadius: 8, padding: '0.75rem 1rem',
+                        border: `1px solid ${isSelected ? T.accent : T.border}`,
+                        cursor: 'pointer', position: 'relative',
+                        transition: 'border-color 0.15s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{r.full_name}</div>
+                        <button
+                          onClick={(e) => handleDelete(e, r)}
+                          disabled={deleting === r.id}
+                          title="Eliminar investigador"
+                          style={{
+                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 4,
+                            color: deleting === r.id ? T.textDim : T.red, fontSize: 12,
+                            padding: '1px 7px', cursor: deleting === r.id ? 'wait' : 'pointer',
+                            lineHeight: 1.4, flexShrink: 0, marginLeft: 8,
+                          }}
+                        >
+                          {deleting === r.id ? '…' : '×'}
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', gap: 16, fontSize: 12, color: T.textMid, fontFamily: MONO }}>
+                        <span><span style={{ color: T.accent }}>{r.works_count}</span> works</span>
+                        <span><span style={{ color: T.green }}>{r.cited_by_count}</span> citas</span>
+                        <span>h-index <span style={{ color: T.purple }}>{r.h_index}</span></span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
