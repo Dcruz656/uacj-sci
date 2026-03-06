@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import useApi from './hooks/useApi.js'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -69,6 +70,133 @@ const TT = {
   cursor:       { fill: '#162840' },
 }
 
+function SyncPanel() {
+  const [text, setText]       = useState('')
+  const [syncing, setSyncing] = useState(false)
+  const [results, setResults] = useState(null)
+  const fileRef               = useRef()
+
+  function parseOrcids(raw) {
+    return raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean)
+  }
+
+  function onFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => setText(ev.target.result)
+    reader.readAsText(file)
+  }
+
+  async function onSync() {
+    const orcids = parseOrcids(text)
+    if (!orcids.length) return
+    setSyncing(true)
+    setResults(null)
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orcids }),
+      })
+      const data = await res.json()
+      setResults(data.results)
+    } catch {
+      setResults([{ status: 'error', message: 'Error de red' }])
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const statusColor = { ok: T.green, not_found: T.amber, error: T.red }
+
+  return (
+    <div style={{
+      background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10,
+      padding: '1rem 1.25rem', marginBottom: '1.5rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '0.75rem' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: T.textDim }}>
+          Sincronizar Investigador
+        </span>
+        <span style={{ fontSize: 11, color: T.textDim }}>— ingresa ORCIDs o sube un .txt</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder={'0000-0002-7313-3766\n0000-0003-3112-5140'}
+          rows={2}
+          style={{
+            flex: 1, background: T.card, border: `1px solid ${T.border}`, borderRadius: 6,
+            color: T.text, fontFamily: MONO, fontSize: 12, padding: '0.5rem 0.75rem',
+            resize: 'vertical', outline: 'none',
+          }}
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button
+            onClick={() => fileRef.current.click()}
+            style={{
+              background: T.card, border: `1px solid ${T.border}`, borderRadius: 6,
+              color: T.textMid, fontSize: 12, padding: '0.45rem 0.9rem', cursor: 'pointer',
+            }}
+          >
+            Subir .txt
+          </button>
+          <input ref={fileRef} type="file" accept=".txt" style={{ display: 'none' }} onChange={onFile} />
+          <button
+            onClick={onSync}
+            disabled={syncing || !text.trim()}
+            style={{
+              background: syncing || !text.trim() ? T.card : T.accent,
+              border: `1px solid ${syncing || !text.trim() ? T.border : T.accent}`,
+              borderRadius: 6, color: syncing || !text.trim() ? T.textDim : T.bg,
+              fontSize: 12, fontWeight: 600, padding: '0.45rem 0.9rem', cursor: syncing ? 'wait' : 'pointer',
+            }}
+          >
+            {syncing ? 'Sincronizando…' : 'Sincronizar'}
+          </button>
+        </div>
+      </div>
+
+      {results && (
+        <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {results.map((r, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: 10, fontSize: 12,
+              background: T.card, borderRadius: 6, padding: '0.4rem 0.75rem',
+              borderLeft: `3px solid ${statusColor[r.status] || T.textDim}`,
+            }}>
+              <span style={{ fontFamily: MONO, color: T.textDim }}>{r.orcid}</span>
+              {r.status === 'ok' && <>
+                <span style={{ color: T.text }}>{r.name}</span>
+                <span style={{ color: T.green, fontFamily: MONO, marginLeft: 'auto' }}>
+                  +{r.works_synced} works
+                </span>
+              </>}
+              {r.status === 'not_found' && <span style={{ color: T.amber }}>No encontrado en OpenAlex</span>}
+              {r.status === 'error'     && <span style={{ color: T.red }}>{r.message}</span>}
+            </div>
+          ))}
+          {results.some(r => r.status === 'ok') && (
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                alignSelf: 'flex-start', marginTop: 4,
+                background: 'transparent', border: `1px solid ${T.accent}`,
+                borderRadius: 6, color: T.accent, fontSize: 12, padding: '0.4rem 0.9rem', cursor: 'pointer',
+              }}
+            >
+              Recargar datos
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function App() {
   const { data: kpis }        = useApi('/api/analytics/kpis')
   const { data: annual }      = useApi('/api/analytics/annual')
@@ -103,6 +231,8 @@ export default function App() {
       </div>
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
+
+        <SyncPanel />
 
         {/* ── KPI CARDS ── */}
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
