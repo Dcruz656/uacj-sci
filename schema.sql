@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS works (
     oa_type TEXT,
     cited_by_count INTEGER DEFAULT 0,
     openalex_id TEXT,
+    best_oa_url TEXT,
+    opencitations_count INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -37,7 +39,8 @@ CREATE TABLE IF NOT EXISTS authorships (
     verified_at TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(work_id, researcher_id)
+    UNIQUE(work_id, researcher_id),
+    ror_match_score REAL
 );
 
 CREATE TABLE IF NOT EXISTS sdg_classifications (
@@ -59,4 +62,16 @@ CREATE TABLE IF NOT EXISTS apc_payments (
     is_estimated INTEGER DEFAULT 1,
     estimation_basis TEXT,
     created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS journals (
+    id           TEXT PRIMARY KEY,
+    name         TEXT,
+    issn         TEXT,
+    issn_l       TEXT,
+    sjr_quartile TEXT,
+    is_predatory INTEGER DEFAULT 0,
+    is_doaj      INTEGER DEFAULT 0,
+    doaj_apc_usd INTEGER,
+    created_at   TEXT DEFAULT (datetime('now'))
 );
