@@ -1,19 +1,19 @@
 import { jsPDF } from 'jspdf'
 
-// ── Palette (RGB arrays for jsPDF) ──────────────────────────────────────────
+// ── Palette (RGB arrays for jsPDF) — light/white theme ──────────────────────
 const C = {
-  navy:    [8,   15,  26],
-  panel:   [12,  24,  41],
-  card:    [15,  31,  51],
-  border:  [22,  40,  64],
-  accent:  [74,  158, 221],
-  green:   [0,   229, 160],
-  amber:   [255, 176, 32],
-  red:     [255, 92,  92],
-  purple:  [123, 111, 245],
-  text:    [212, 232, 248],
-  textMid: [122, 175, 212],
-  textDim: [58,  96,  128],
+  navy:    [255, 255, 255],   // page background: white
+  panel:   [243, 247, 252],   // section/header backgrounds
+  card:    [235, 242, 251],   // row alternating / cards
+  border:  [200, 218, 238],   // dividers and borders
+  accent:  [26,  115, 196],   // accent blue (deeper for white bg)
+  green:   [0,   155, 105],   // green (deeper for white bg)
+  amber:   [185, 120,  0],    // amber (deeper for white bg)
+  red:     [195,  50,  50],   // red (deeper for white bg)
+  purple:  [90,   70, 195],   // purple (deeper for white bg)
+  text:    [15,   30,  55],   // main text: near-black navy
+  textMid: [55,   90, 140],   // secondary text: medium blue-gray
+  textDim: [120, 155, 190],   // dim text: light blue-gray
 }
 
 const M  = 14        // left/right margin (mm)
