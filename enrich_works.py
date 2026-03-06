@@ -39,42 +39,42 @@ def main():
     conn.autocommit = False
 
     # ── 1. DOAJ ──────────────────────────────────────────────────────────────
-    print("\n[1/4] DOAJ — verificando revistas...")
+    print("\n[1/4] DOAJ - verificando revistas...")
     print("      (hace 1 llamada a OpenAlex + 1 a DOAJ por work, puede tardar ~2 min)")
     try:
         stats = doaj.enrich(conn, OPENALEX_EMAIL)
-        print(f"      ✓ {stats['processed']} procesados | "
+        print(f"      OK {stats['processed']} procesados | "
               f"{stats['doaj_found']} en DOAJ | "
               f"{stats['apc_updated']} APC reales guardados")
     except Exception as e:
-        print(f"      ✗ Error: {e}")
+        print(f"      ERROR: {e}")
 
     # ── 2. Unpaywall ─────────────────────────────────────────────────────────
-    print("\n[2/4] Unpaywall — enriqueciendo datos OA...")
+    print("\n[2/4] Unpaywall - enriqueciendo datos OA...")
     try:
         stats = unpaywall.enrich(conn, OPENALEX_EMAIL)
-        print(f"      ✓ {stats['processed']} procesados | "
+        print(f"      OK {stats['processed']} procesados | "
               f"{stats['updated']} actualizados")
     except Exception as e:
-        print(f"      ✗ Error: {e}")
+        print(f"      ERROR: {e}")
 
     # ── 3. ROR ───────────────────────────────────────────────────────────────
-    print("\n[3/4] ROR — resolviendo affiliaciones declaradas...")
+    print("\n[3/4] ROR - resolviendo affiliaciones declaradas...")
     try:
         stats = ror.enrich(conn)
-        print(f"      ✓ {stats['processed']} procesados | "
+        print(f"      OK {stats['processed']} procesados | "
               f"{stats['resolved']} affiliaciones resueltas")
     except Exception as e:
-        print(f"      ✗ Error: {e}")
+        print(f"      ERROR: {e}")
 
     # ── 4. OpenCitations ─────────────────────────────────────────────────────
-    print("\n[4/4] OpenCitations — contando citas cruzadas...")
+    print("\n[4/4] OpenCitations - contando citas cruzadas...")
     try:
         stats = opencitations.enrich(conn)
-        print(f"      ✓ {stats['processed']} procesados | "
+        print(f"      OK {stats['processed']} procesados | "
               f"{stats['updated']} actualizados")
     except Exception as e:
-        print(f"      ✗ Error: {e}")
+        print(f"      ERROR: {e}")
 
     conn.close()
     print("\nEnriquecimiento completado.")
