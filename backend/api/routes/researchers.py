@@ -28,7 +28,7 @@ def list_researchers(limit: int = 100, offset: int = 0):
     return get_researchers(limit=limit, offset=offset)
 
 
-@router.delete("/{researcher_id}")
+@router.delete("/{researcher_id:path}")
 def remove_researcher(researcher_id: str):
     if not get_researcher_by_id(researcher_id):
         raise HTTPException(status_code=404, detail="Investigador no encontrado")
@@ -36,7 +36,7 @@ def remove_researcher(researcher_id: str):
     return {"deleted": researcher_id}
 
 
-@router.get("/{researcher_id}")
+@router.get("/{researcher_id:path}")
 def get_researcher(researcher_id: str):
     researcher = get_researcher_by_id(researcher_id)
     if not researcher:
