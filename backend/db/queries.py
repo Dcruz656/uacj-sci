@@ -153,11 +153,26 @@ def get_affiliation_unresolved(researcher_id: str | None = None):
 
 def delete_researcher(researcher_id: str):
     with get_conn() as conn:
+        # Works that belong ONLY to this researcher (no other authorship)
+        orphan_rows = conn.execute("""
+            SELECT DISTINCT work_id FROM authorships
+            WHERE researcher_id = ?
+              AND work_id NOT IN (
+                  SELECT work_id FROM authorships WHERE researcher_id != ?
+              )
+        """, [researcher_id, researcher_id]).fetchall()
+        orphan_ids = [r[0] for r in orphan_rows]
+
+        if orphan_ids:
+            ph = ",".join(["?" for _ in orphan_ids])
+            conn.execute(f"DELETE FROM sdg_classifications WHERE work_id IN ({ph})", orphan_ids)
+            conn.execute(f"DELETE FROM apc_payments     WHERE work_id IN ({ph})", orphan_ids)
+
         conn.execute("DELETE FROM authorships WHERE researcher_id = ?", [researcher_id])
-        conn.execute("""
-            DELETE FROM works
-            WHERE id NOT IN (SELECT DISTINCT work_id FROM authorships)
-        """)
+
+        if orphan_ids:
+            conn.execute(f"DELETE FROM works WHERE id IN ({ph})", orphan_ids)
+
         conn.execute("DELETE FROM researchers WHERE id = ?", [researcher_id])
 
 

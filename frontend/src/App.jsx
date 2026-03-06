@@ -217,11 +217,12 @@ export default function App() {
     if (!window.confirm(`¿Eliminar a ${r.full_name} y todos sus works?`)) return
     setDeleting(r.id)
     try {
-      await fetch(`${BASE_URL}/api/researchers/${encodeURIComponent(r.id)}`, { method: 'DELETE' })
+      const res = await fetch(`${BASE_URL}/api/researchers/${encodeURIComponent(r.id)}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       if (selected?.id === r.id) setSelected(null)
       window.location.reload()
-    } catch {
-      alert('Error al eliminar')
+    } catch (err) {
+      alert(`Error al eliminar: ${err.message}`)
       setDeleting(null)
     }
   }
