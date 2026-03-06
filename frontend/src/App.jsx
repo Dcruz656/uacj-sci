@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import useApi from './hooks/useApi.js'
+import { generateReport } from './utils/generateReport.js'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -199,8 +200,9 @@ function SyncPanel() {
 }
 
 export default function App() {
-  const [selected, setSelected] = useState(null) // { id, full_name } | null
-  const [deleting, setDeleting] = useState(null) // researcher id being deleted
+  const [selected,   setSelected]   = useState(null)  // { id, full_name } | null
+  const [deleting,   setDeleting]   = useState(null)  // researcher id being deleted
+  const [generating, setGenerating] = useState(false)
 
   const rp = selected ? `?researcher_id=${encodeURIComponent(selected.id)}` : ''
 
@@ -211,6 +213,16 @@ export default function App() {
   const { data: affSummary }  = useApi(`/api/researchers/affiliation/summary${rp}`)
   const { data: unresolved }  = useApi(`/api/researchers/affiliation/unresolved${rp}`)
   const { data: works }       = useApi(`/api/works?limit=20${selected ? `&researcher_id=${encodeURIComponent(selected.id)}` : ''}`)
+
+  async function handleExport() {
+    setGenerating(true)
+    try {
+      await new Promise(r => setTimeout(r, 0)) // let React re-render first
+      generateReport({ kpis, annual, sdgData, researchers, affSummary, unresolved, works, selected })
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   async function handleDelete(e, r) {
     e.stopPropagation()
@@ -248,7 +260,23 @@ export default function App() {
           fontFamily: MONO, fontSize: 12, fontWeight: 600, color: T.bg,
         }}>UACJ·SCI</div>
         <span style={{ fontSize: 16, fontWeight: 600 }}>Sistema de Inteligencia Científica</span>
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: T.textDim, fontFamily: MONO }}>piloto v0.1</span>
+        <span style={{ fontSize: 12, color: T.textDim, fontFamily: MONO, marginLeft: 'auto' }}>piloto v0.1</span>
+        <button
+          onClick={handleExport}
+          disabled={!kpis || generating}
+          style={{
+            background: generating || !kpis ? T.card : T.accent,
+            border: `1px solid ${generating || !kpis ? T.border : T.accent}`,
+            borderRadius: 6,
+            color: generating || !kpis ? T.textDim : T.bg,
+            fontSize: 12, fontWeight: 600,
+            padding: '0.4rem 1rem',
+            cursor: generating || !kpis ? 'not-allowed' : 'pointer',
+            transition: 'background 0.15s',
+          }}
+        >
+          {generating ? 'Generando...' : 'Exportar PDF'}
+        </button>
       </div>
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
